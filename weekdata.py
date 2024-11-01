@@ -5,24 +5,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# 添加自动安装openai包的代码
-import subprocess
-import sys
-
-def install_package(package):
-    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-
-try:
-    import openai
-except ImportError:
-    st.info('正在安装必要的依赖包...')
-    install_package('openai')
-    import openai
-
-# 设置OpenAI API密钥
-if 'openai_api_key' not in st.session_state:
-    st.session_state.openai_api_key = None
-
 def calculate_overall_satisfaction(df):
     """计算总体满意率"""
     # 只统计评分列有数据的行
@@ -277,73 +259,3 @@ if uploaded_file is not None:
                 'layout': {'title': '知识库召回情况分布'}
             }
             st.plotly_chart(fig_recall, use_container_width=True)
-
-# 在显示所有分析结果后添加对话功能
-if uploaded_file is not None:
-    st.divider()
-    st.subheader("💬 与数据对话")
-    
-    # 添加API Key输入框
-    api_key = st.text_input("请输入OpenAI API Key", type="password", key="api_key_input")
-    if api_key:
-        st.session_state.openai_api_key = api_key
-        openai.api_key = api_key
-    
-    # 初始化聊天历史
-    if "messages" not in st.session_state:
-        st.session_state.messages = []
-
-    # 显示聊天历史
-    for message in st.session_state.messages:
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
-
-    # 聊天输入
-    if prompt := st.chat_input("请输入您的问题"):
-        if not st.session_state.openai_api_key:
-            st.error("请先输入OpenAI API Key")
-        else:
-            # 将用户问题添加到聊天历史
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            
-            # 显示用户问题
-            with st.chat_message("user"):
-                st.markdown(prompt)
-
-            # 显示助手回复
-            with st.chat_message("assistant"):
-                try:
-                    # 将DataFrame转换为字符串描述
-                    df_info = f"""
-                    数据集包含以下列：{', '.join(df.columns)}
-                    总行数：{len(df)}
-                    
-                    数据统计信息：
-                    - 总体满意率: {overall_satisfaction:.2f}%
-                    - SQU模型准确率: {squ_accuracy['accuracy']:.2f}%
-                    - 平均召回条数: {recall_stats['avg_recall']:.2f}
-                    """
-                    
-                    message_placeholder = st.empty()
-                    # 使用新版OpenAI API
-                    response = openai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[
-                            {"role": "system", "content": f"你是一个数据分析助手。以下是数据集的信息：\n{df_info}"},
-                            {"role": "user", "content": prompt}
-                        ],
-                        stream=True
-                    )
-                    
-                    full_response = ""
-                    for chunk in response:
-                        if chunk.choices[0].delta.content:
-                            full_response += chunk.choices[0].delta.content
-                            message_placeholder.markdown(full_response + "▌")
-                    message_placeholder.markdown(full_response)
-                    
-                    # 将助手回复添加到聊天历史
-                    st.session_state.messages.append({"role": "assistant", "content": full_response})
-                    
-                except Exception as e:
-                    st.error(f"生成回复时发生错误: {str(e)}")
