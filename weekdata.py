@@ -1,6 +1,12 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import openai
+# ... existing imports ...
+
+# 设置OpenAI API密钥
+if 'openai_api_key' not in st.session_state:
+    st.session_state.openai_api_key = None
 
 def calculate_overall_satisfaction(df):
     """计算总体满意率"""
@@ -72,8 +78,11 @@ def calculate_recall_stats(df):
     avg_recall = df['召回条数'].mean()
     
     # 计算有召回的占比
-    has_recall = len(df[df['召回条数'] > 0])
-    recall_ratio = (has_recall / len(df)) * 100
+    df_recall = df.dropna(subset=['召回条数'])
+    has_recall = len(df_recall[df_recall['召回条数'] > 0])
+    no_recall = len(df_recall[df_recall['召回条数'] == 0])
+    total_rows = len(df_recall)
+    recall_ratio = (has_recall / total_rows) * 100 if total_rows > 0 else 0
     
     # 计算有召回和无召回的满意度，排除评分为空的数据
     df_valid = df.dropna(subset=['评分'])
@@ -97,7 +106,7 @@ def calculate_recall_stats(df):
         'recall_8_10_satisfaction': recall_8_10_satisfaction,
         'no_recall_satisfaction': no_recall_satisfaction,
         'total_with_recall': has_recall,
-        'total_no_recall': len(df_no_recall),
+        'total_no_recall': no_recall,
         'total_recall_1_3': len(df_recall_1_3),
         'total_recall_4_7': len(df_recall_4_7),
         'total_recall_8_10': len(df_recall_8_10)
@@ -221,3 +230,105 @@ if uploaded_file is not None:
             st.code(summary)
         with col_button:
             st.button("📋 复制总结", on_click=lambda: st.write(f'<script>navigator.clipboard.writeText(`{summary}`)</script>', unsafe_allow_html=True))
+            
+        # 添加可视化图表
+        st.subheader("📊 数据可视化")
+        
+        # SQU有效性分析饼图
+        col_pie1, col_pie2 = st.columns(2)
+        
+        with col_pie1:
+            st.subheader("SQU模型准确性分布")
+            fig_squ = {
+                'data': [{
+                    'values': [squ_accuracy['manual_correct'], squ_accuracy['manual_incorrect']],
+                    'labels': ['有效样本', '不准确样本'],
+                    'type': 'pie',
+                    'hole': 0.4,
+                }],
+                'layout': {'title': 'SQU模型准确性分布'}
+            }
+            st.plotly_chart(fig_squ, use_container_width=True)
+            
+        with col_pie2:
+            st.subheader("知识库召回情况分布")
+            fig_recall = {
+                'data': [{
+                    'values': [recall_stats['total_with_recall'], recall_stats['total_no_recall']],
+                    'labels': ['有召回', '无召回'],
+                    'type': 'pie',
+                    'hole': 0.4,
+                }],
+                'layout': {'title': '知识库召回情况分布'}
+            }
+            st.plotly_chart(fig_recall, use_container_width=True)
+
+# 在显示所有分析结果后添加对话功能
+if uploaded_file is not None:
+    st.divider()
+    st.subheader("💬 与数据对话")
+    
+    # 添加API Key输入框
+    api_key = st.text_input("请输入OpenAI API Key", type="password", key="api_key_input")
+    if api_key:
+        st.session_state.openai_api_key = api_key
+        openai.api_key = api_key
+    
+    # 初始化聊天历史
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    # 显示聊天历史
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+
+    # 聊天输入
+    if prompt := st.chat_input("请输入您的问题"):
+        if not st.session_state.openai_api_key:
+            st.error("请先输入OpenAI API Key")
+        else:
+            # 将用户问题添加到聊天历史
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            
+            # 显示用户问题
+            with st.chat_message("user"):
+                st.markdown(prompt)
+
+            # 显示助手回复
+            with st.chat_message("assistant"):
+                try:
+                    # 将DataFrame转换为字符串描述
+                    df_info = f"""
+                    数据集包含以下列：{', '.join(df.columns)}
+                    总行数：{len(df)}
+                    
+                    数据统计信息：
+                    - 总体满意率: {overall_satisfaction:.2f}%
+                    - SQU模型准确率: {squ_accuracy['accuracy']:.2f}%
+                    - 平均召回条数: {recall_stats['avg_recall']:.2f}
+                    """
+                    
+                    message_placeholder = st.empty()
+                    # 使用新版OpenAI API
+                    response = openai.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[
+                            {"role": "system", "content": f"你是一个数据分析助手。以下是数据集的信息：\n{df_info}"},
+                            {"role": "user", "content": prompt}
+                        ],
+                        stream=True
+                    )
+                    
+                    full_response = ""
+                    for chunk in response:
+                        if chunk.choices[0].delta.content:
+                            full_response += chunk.choices[0].delta.content
+                            message_placeholder.markdown(full_response + "▌")
+                    message_placeholder.markdown(full_response)
+                    
+                    # 将助手回复添加到聊天历史
+                    st.session_state.messages.append({"role": "assistant", "content": full_response})
+                    
+                except Exception as e:
+                    st.error(f"生成回复时发生错误: {str(e)}")
