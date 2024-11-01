@@ -2,7 +2,23 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import openai
-# ... existing imports ...
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+# 添加自动安装openai包的代码
+import subprocess
+import sys
+
+def install_package(package):
+    subprocess.check_call([sys.executable, "-m", "pip", "install", package])
+
+try:
+    import openai
+except ImportError:
+    st.info('正在安装必要的依赖包...')
+    install_package('openai')
+    import openai
 
 # 设置OpenAI API密钥
 if 'openai_api_key' not in st.session_state:
