@@ -52,7 +52,32 @@ Guidelines for high-quality translations:
 
 Remember, these translations will be used in a software interface, so they should be clear, concise, and user-friendly. Avoid overly technical language unless it's necessary for accuracy.
 
-Provide your three translations now, each wrapped in the appropriate XML tags as shown above."""
+Provide your three translations now, each wrapped in the appropriate XML tags as shown above.
+
+Here are some example：
+<examples>
+<example>
+<CHINESE_TEXT>
+标准会员
+</CHINESE_TEXT>
+<ideal_output>
+<translation1>Standard Member</translation1>
+<translation2>Regular Membership</translation2>
+<translation3>Basic Member</translation3>
+</ideal_output>
+</example>
+<example>
+<CHINESE_TEXT>
+注册
+</CHINESE_TEXT>
+<ideal_output>
+<translation1>Sign Up</translation1>
+<translation2>Register</translation2>
+<translation3>Create Account</translation3>
+</ideal_output>
+</example>
+
+"""
 
     client = anthropic.Client(api_key=anthropic_api_key)
     response = client.messages.create(
