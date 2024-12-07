@@ -1,7 +1,7 @@
 import streamlit as st
 import anthropic
 
-st.title("王心洁简历优化")
+st.title("简历优化")
 
 # API Key input in sidebar
 with st.sidebar:
