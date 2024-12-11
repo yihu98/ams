@@ -1,6 +1,9 @@
 import streamlit as st
 import anthropic
 
+with st.sidebar:
+    anthropic_api_key = st.text_input("Anthropic API Key", key="translator_api_key", type="password")
+
 st.title("💬 书面语转口语润色助手")
 
 question = st.text_area(
@@ -15,7 +18,10 @@ formal_text = st.text_area(
     height=150
 )
 
-if st.button("开始润色") and formal_text:
+if formal_text and not anthropic_api_key:
+    st.info("请先输入您的 Anthropic API Key 以继续使用")
+
+if st.button("开始润色") and formal_text and anthropic_api_key:
     prompt = f"""你的任务是将一段书面化的中文文本转换成3个口语化的中文逐字口语转录文本，作为候选。这个过程需要你将正式的书面语言转化为更自然、更随意的口头表达方式。
 
 客户的问题是：
@@ -38,7 +44,7 @@ if st.button("开始润色") and formal_text:
    - 将"然而"改为"不过"或"但是"
    - 将"即使"改为"就算"或"哪怕"
 
-3. 添加一些口语中常见的语气词，如"嗯"、"那个"、"就是"等。不要有"呃""额"，不要说你好或者打招呼。
+3. 添加一些口语中常见的语气词，如"嗯"、"那个"、"就是"等。不要有"呃""额"。
 
 4. 适当增加重复、停顿和自我纠正，以模仿真实对话中的特点。
 
@@ -68,7 +74,7 @@ if st.button("开始润色") and formal_text:
 现在，请开始转换工作，将给定的书面化文本转换为口语化的表达。"""
 
     try:
-        client = anthropic.Client(api_key="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")
+        client = anthropic.Client(api_key=anthropic_api_key)
         response = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1000,
