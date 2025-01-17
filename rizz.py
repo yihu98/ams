@@ -12,18 +12,21 @@ def process_image(uploaded_file):
         # 读取图片
         image = Image.open(uploaded_file)
         
-        # 转换为JPEG格式
+        # 获取实际的图片格式
+        if image.format:
+            mime_type = f"image/{image.format.lower()}"
+        else:
+            mime_type = "image/jpeg"  # 默认使用JPEG
+        
+        # 转换为RGB模式（如果需要）
         if image.mode in ('RGBA', 'LA'):
             background = Image.new('RGB', image.size, (255, 255, 255))
             background.paste(image, mask=image.split()[-1])
             image = background
         
-        # 获取MIME类型
-        mime_type = mimetypes.guess_type(uploaded_file.name)[0] or 'image/jpeg'
-        
         # 压缩图片
         img_byte_arr = io.BytesIO()
-        image.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+        image.save(img_byte_arr, format=image.format or 'JPEG', quality=85, optimize=True)
         img_byte_arr.seek(0)
         
         # 检查文件大小
@@ -37,7 +40,7 @@ def process_image(uploaded_file):
             
             while file_size > max_size and quality > 30:
                 img_byte_arr = io.BytesIO()
-                image.save(img_byte_arr, format='JPEG', quality=quality, optimize=True)
+                image.save(img_byte_arr, format=image.format or 'JPEG', quality=quality, optimize=True)
                 file_size = len(img_byte_arr.getvalue())
                 if file_size > max_size:
                     width, height = image.size
