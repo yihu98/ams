@@ -6,8 +6,6 @@ import anthropic
 import mimetypes
 
 # 设置固定的 API key
-ANTHROPIC_API_KEY = "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"
-
 def process_image(uploaded_file):
     """处理上传的图片文件，返回base64编码和MIME类型"""
     try:
@@ -66,6 +64,15 @@ st.title("回复助手")
 
 with st.sidebar:
     st.markdown("""
+    ### API密钥设置
+    1. 访问 [Anthropic Console](https://console.anthropic.com/)
+    2. 注册并登录账号
+    3. 在控制台中创建新的API密钥
+    4. 复制API密钥并粘贴到下方输入框
+    """)
+    anthropic_api_key = st.text_input("Anthropic API Key", key="file_qa_api_key", type="password", help="请输入你的Anthropic API密钥")
+    
+    st.markdown("""
     ### 使用说明
     1. 上传聊天截图（支持 JPG、PNG 格式）
     2. 点击"生成回复建议"按钮
@@ -119,9 +126,11 @@ if uploaded_file:
 请在三个<suggestion></suggestion>标签内提供回复建议。不要包含任何解释或评论。"""
                     }
                 ]
-                
                 # 调用 API
-                client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+                if not anthropic_api_key:
+                    st.error("请先输入你的Anthropic API密钥")
+                    st.stop()
+                client = anthropic.Anthropic(api_key=anthropic_api_key)
                 message = client.messages.create(
                     model="claude-3-5-sonnet-20241022",
                     max_tokens=1024,
